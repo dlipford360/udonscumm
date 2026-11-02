@@ -2904,6 +2904,30 @@ class FixtureTests(unittest.TestCase):
         self.assertEqual(sim.object_class[442], 0x20)
         self.assertEqual(sim.object_class[285], 0x4020)
 
+    def test_if_class_of_is_allows_object_zero(self):
+        # Room-28 hover runs ifClassOfIs(local0, ...) with local0 == 0 when
+        # the cursor is over no object (verb-button hover). Object 0 is
+        # valid (ScummVM getClass allows 0); the VM must consume the full
+        # instruction and branch, not stop mid-stream and misdecode the
+        # class byte as the next opcode (Invalid actor 141 at 23:168).
+        prog = bytes([0x1D, 0, 0, 0x01, 0x06, 0x00, 0xFF, 0x08, 0x00,
+                      0x1A, 100, 0, 7, 0, 0x18, 0x05, 0x00,
+                      0x1A, 100, 0, 9, 0, 0x00])
+        sim = ReferenceSim({1: prog})
+        sim.start(1, [0])
+        for _ in range(4):
+            sim.tick(4)
+        self.assertEqual(sim.fault, "")
+        # class 6 absent on object 0: plain check must fall through to 7
+        self.assertEqual(sim.globals[100], 7)
+        sim2 = ReferenceSim({1: prog})
+        sim2.object_class[0] |= 0x20
+        sim2.start(1, [0])
+        for _ in range(4):
+            sim2.tick(4)
+        self.assertEqual(sim2.fault, "")
+        self.assertEqual(sim2.globals[100], 9)
+
     def test_lights_default_on_and_opcode_sets_var9(self):
         sim = ReferenceSim({1: bytes([0x70, 0x05, 0x00, 0x00, 0x00])})
         self.assertEqual(sim.globals[9], 11)

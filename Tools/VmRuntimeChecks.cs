@@ -540,6 +540,26 @@ class VmRuntimeChecks
         Run(vm, budget);
         Check(vm.ReadGlobal(100) == 7, "ifClassOfIs must fall through when class absent");
 
+        // Object 0 is valid: hover with no object runs ifClassOfIs(0, ...)
+        // and must branch, not desync into Invalid actor 141 (room-28 23:168).
+        vm = Machine();
+        Script(vm, 1, 0x1D, 0, 0, 0x01, 0x06, 0x00, 0xFF, 0x08, 0x00,
+            0x1A, 100, 0, 7, 0, 0x18, 0x05, 0x00,
+            0x1A, 100, 0, 9, 0, 0x00);
+        vm.ResetMachine();
+        Run(vm, budget);
+        Check(vm.fault == "", "ifClassOfIs(0) must not fault, got " + vm.fault);
+        Check(vm.ReadGlobal(100) == 7, "ifClassOfIs(0) absent must fall through, got " + vm.ReadGlobal(100));
+        vm = Machine();
+        Script(vm, 1, 0x1D, 0, 0, 0x01, 0x06, 0x00, 0xFF, 0x08, 0x00,
+            0x1A, 100, 0, 7, 0, 0x18, 0x05, 0x00,
+            0x1A, 100, 0, 9, 0, 0x00);
+        vm.ResetMachine();
+        ((int[])typeof(ScummV5Vm).GetField("objectClass", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(vm))[0] = 0x20;
+        Run(vm, budget);
+        Check(vm.fault == "", "ifClassOfIs(0) present must not fault, got " + vm.fault);
+        Check(vm.ReadGlobal(100) == 9, "ifClassOfIs(0) present must jump, got " + vm.ReadGlobal(100));
+
         // Abort: a click during an armed cutscene override resumes instead
         // of dispatching the verb script, and reports VAR_OVERRIDE.
         vm = Machine();

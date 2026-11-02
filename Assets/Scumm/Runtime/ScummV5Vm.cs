@@ -1621,13 +1621,13 @@ public class ScummV5Vm : UdonSharpBehaviour
     private int ValidActor(int act)
     {
         if (act < 1 || act >= 48) { Fail("Invalid actor " + act); return 0; }
-        return act;
+        return 1;
     }
 
     private int ValidObject(int obj)
     {
         if (obj < 0 || obj >= 1024) { Fail("Invalid object " + obj); return 0; }
-        return obj;
+        return 1;
     }
 
     private void PutActor()

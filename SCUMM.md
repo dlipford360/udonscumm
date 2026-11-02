@@ -147,6 +147,16 @@ the talk; and the actor layer let the ambient costume chore (ego's stuck
 `anim` 5) override the walk cycle, so legs never moved — ambient is now a
 fallback when no walk/stand/talk pose exists, and west walks face 270 with
 the baked walk seq cycling.
+A third talk-path freeze is also fixed: clicking Talk then leaving the
+cursor over the verb buttons (no object under the cursor) ran
+`o5_ifClassOfIs(0, ...)` in the hover tracker (global script 23) with
+object 0. Object 0 is valid (ScummVM `getClass` allows 0), but
+`ValidObject` returned the id itself, so `== 0` looked like failure and
+the handler returned mid-instruction without consuming its mode/FF/jump
+bytes. The next fetch decoded the class byte as opcode 1 (`o5_putActor`
+with act 141) and stopped with `Invalid actor 141` at `23:168`. `ValidObject`
+now returns 1/0 like `ValidActor`, and both simulators cover
+`ifClassOfIs(0)` present/absent branching without fault.
 
 ### Foreground masks
 
