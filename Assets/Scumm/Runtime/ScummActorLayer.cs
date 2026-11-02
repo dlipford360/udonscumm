@@ -131,12 +131,15 @@ public class ScummActorLayer : UdonSharpBehaviour
             float scaleY = vm.GetActorRenderScaleY(actor) / 255f;
             float sx = vm.GetActorX(actor) - vm.GetCameraScrollX() - box.z * scaleX;
             float sy = vm.GetActorY(actor) - vm.GetActorElevation(actor) - box.w * scaleY;
-            // Classic COSTUME cels are authored for oldDir 0 (west) and drawn
-            // mirrored otherwise (ClassicCostumeRenderer::setFacing:
-            // _drawActorToRight = newDirToOldDir(facing) != 0). None of our
-            // baked costumes set the always-mirror format bit, so mirror
-            // exactly when facing != 0: swap U and re-anchor the hotspot.
-            if (facing != 0)
+            // Classic COST cels decode left-to-right (xStep +1) and the
+            // renderer flips the step for oldDir 0
+            // (ClassicCostumeRenderer::setFacing: _drawActorToRight =
+            // newDirToOldDir(facing) != 0, xStep = toRight ? +1 : -1).
+            // None of our baked costumes set the always-mirror format bit,
+            // so mirror exactly for facing 0 (west): swap U and re-anchor
+            // the hotspot. Without this, west walks render the east base
+            // sprite (moonwalking).
+            if (facing == 0)
             {
                 uv = new Vector4(uv.z, uv.y, uv.x, uv.w);
                 sx = vm.GetActorX(actor) - vm.GetCameraScrollX() - (box.x - box.z) * scaleX;
