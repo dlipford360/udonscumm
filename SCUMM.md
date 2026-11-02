@@ -298,7 +298,12 @@ Ambient actors with no walk/stand frames (the room-10 sky clouds, costume 59)
 run a costume command directly via `startAnimActor`, so the layer selects the
 actor's `anim` chore when poses exist for it — static cels drifting across the
 sky on the engine's own walk paths. Bake 59 with the same command; no layer
-rewiring beyond Wire All is needed.
+rewiring beyond Wire All is needed. The ambient chore is a fallback only:
+normal walk/talk/stand poses (with their baked step sequences) are tried
+first, otherwise Guybrush's stuck `anim` 5 hijacks the walk cycle and legs
+never move. West walks face 270 through the `newDirToOldDir`-matching map
+with the baked walk seq cycling; the actor table is cached per actor for the
+same reason as objects above.
 
 ### Camera scrolling (logo, vista, wide rooms)
 
@@ -532,7 +537,7 @@ This first synthetic arithmetic loop establishes a lower-complexity baseline. It
 - 73 rooms baked, 13 skipped (no/imageless objects), 0 failed. One BOMP-encoded object (room 99 object 1045) is skipped with a warning — its line framing is still undetermined.
 - Atlas texel: R = palette index, A = coverage (0 for index 0, else 255). Transparency rule is index-0 for now; the ZP01 mask plane decodes structurally (28 LE16 strip offsets verified) but its strip encoding is still unknown, and object 109's title card renders correctly without it.
 - Output (local, git-ignored like RoomPreviews): `Assets/Scumm/Generated/ObjectAtlases/<rrr>/atlas.png` (linear, point, uncompressed, clamp, alpha kept) + `atlas.json` + `table.txt` (`objId u0 v0 u1 v1`, Unity-v convention).
-- In Unity, **SCUMM → Wire Object Atlases** attaches atlases + UV tables to the screen material and a `ScummObjectLayer` (max 8 layers, slot order = z-order) that follows VM object visibility/position/size live. The shader composites atlas texels through the room palette, so palette animation keeps working for objects.
+- In Unity, **SCUMM → Wire Object Atlases** attaches atlases + UV tables to the screen material and a `ScummObjectLayer` (max 16 layers, slot order = z-order) that follows VM object visibility/position/size live. The shader composites atlas texels through the room palette, so palette animation keeps working for objects. The layer caches resolved UVs per object slot (tables hold ~700 entries across 65 rooms; a full scan per slot per frame collapsed ClientSim to single-digit fps in room 28, which has 52 slots).
 
 ## Next implementation increment
 

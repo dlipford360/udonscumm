@@ -31,6 +31,15 @@ public class ScummActorLayer : UdonSharpBehaviour
     private int lastLoggedCount = -1;
     private int lastLoggedRoom = -99999;
 
+    // FindPose scans the whole pose table (~660 entries after the full
+    // costume bake) per visible actor per frame. Cache the resolved table
+    // slot per actor; the (costume, facing*8+frame) key revalidates every
+    // frame, so walks/talks that change the frame still animate.
+    private int[] cacheActorCostume = new int[48];
+    private int[] cacheActorKey = new int[48];
+    private int[] cacheActorSlot = new int[48];
+    private bool cacheActorInit;
+
     private void Update()
     {
         if (screenMaterial == null) return;
@@ -54,6 +63,11 @@ public class ScummActorLayer : UdonSharpBehaviour
     private void PushActors(int room)
     {
         int count = 0;
+        if (!cacheActorInit)
+        {
+            cacheActorInit = true;
+            for (int i = 0; i < 48; i++) cacheActorCostume[i] = -1;
+        }
         int talkActor = vm.ReadGlobal(TalkActorVar);
         for (int actor = 1; actor < 48 && count < MaxActors; actor++)
         {
@@ -79,17 +93,37 @@ public class ScummActorLayer : UdonSharpBehaviour
             int key = facing * 8 + frame;
             int seq = FindSeq(costume, key);
             if (seq >= 0) frame = seqBase[seq] + vm.GetActorAnimStep(actor) % seqLen[seq];
-            int slot = FindPose(costume, facing * 8 + frame);
+            int slot;
+            int wantKey = facing * 8 + frame;
+            if (actor >= 0 && actor < 48 && cacheActorCostume[actor] == costume && cacheActorKey[actor] == wantKey)
+                slot = cacheActorSlot[actor];
+            else
+            {
+                slot = FindPose(costume, facing * 8 + frame);
+                if (actor >= 0 && actor < 48)
+                {
+                    cacheActorCostume[actor] = costume;
+                    cacheActorKey[actor] = wantKey;
+                    cacheActorSlot[actor] = slot;
+                }
+            }
             if (slot < 0 && rawWalk < 1 && rawStand < 1 && anim >= 1)
             {
                 frame = anim;
-                key = facing * 8 + frame;
-                seq = FindSeq(costume, key);
+                wantKey = facing * 8 + frame;
+                seq = FindSeq(costume, wantKey);
                 if (seq >= 0) frame = seqBase[seq] + vm.GetActorAnimStep(actor) % seqLen[seq];
                 slot = FindPose(costume, facing * 8 + frame);
+                if (actor >= 0 && actor < 48)
+                {
+                    cacheActorCostume[actor] = costume;
+                    cacheActorKey[actor] = wantKey;
+                    cacheActorSlot[actor] = slot;
+                }
             }
             if (slot < 0) slot = FindPose(costume, facing * 8 + standFrame);
-            if (slot < 0 || atlases == null || tableAtlas[slot] < 0
+            if (slot < 0 || atlases == null || tableAtlas == null || slot >= tableAtlas.Length
+                || tableAtlas[slot] < 0
                 || tableAtlas[slot] >= atlases.Length || atlases[tableAtlas[slot]] == null) continue;
             Vector4 uv = tableUV[slot];
             Vector4 box = tableBox[slot];

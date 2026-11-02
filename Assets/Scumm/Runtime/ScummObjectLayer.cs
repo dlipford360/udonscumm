@@ -24,6 +24,16 @@ public class ScummObjectLayer : UdonSharpBehaviour
     private int lastLoggedCount = -1;
     private int lastLoggedRoom = -99999;
 
+    // tableRoom/tableObj/tableUV hold every room (~700 entries after the
+    // full bake). A full scan per object slot per frame is tens of thousands
+    // of Udon ops and collapses the frame rate in object-dense rooms
+    // (room 28 has 52 slots). UVs are static per (room, id), so cache the
+    // resolved UV per object slot; the cache key revalidates against the
+    // live slot id, and the whole cache drops on room change.
+    private int cacheRoom = -99999;
+    private int[] cacheSlotId = new int[200];
+    private Vector4[] cacheUV = new Vector4[200];
+
     private void Update()
     {
         if (vm == null || screenMaterial == null) return;
@@ -50,6 +60,11 @@ public class ScummObjectLayer : UdonSharpBehaviour
     private void PushObjects(int room)
     {
         int count = 0;
+        if (room != cacheRoom)
+        {
+            cacheRoom = room;
+            for (int i = 0; i < 200; i++) cacheSlotId[i] = 0;
+        }
         int slots = vm.GetObjectSlotCount();
         for (int slot = 1; slot <= slots && count < MaxObjects; slot++)
         {
@@ -59,7 +74,13 @@ public class ScummObjectLayer : UdonSharpBehaviour
             int w = vm.GetObjectSlotW(slot);
             int h = vm.GetObjectSlotH(slot);
             if (w <= 0 || h <= 0) continue;
-            Vector4 uv = FindUv(room, id);
+            Vector4 uv;
+            if (slot < 200 && cacheSlotId[slot] == id) uv = cacheUV[slot];
+            else
+            {
+                uv = FindUv(room, id);
+                if (slot < 200) { cacheSlotId[slot] = id; cacheUV[slot] = uv; }
+            }
             if (uv == Vector4.zero) continue;
             Vector4 rect = new Vector4(
                 vm.GetObjectSlotX(slot) - vm.GetCameraScrollX(), vm.GetObjectSlotY(slot), w, h);
