@@ -131,6 +131,16 @@ public class ScummActorLayer : UdonSharpBehaviour
             float scaleY = vm.GetActorRenderScaleY(actor) / 255f;
             float sx = vm.GetActorX(actor) - vm.GetCameraScrollX() - box.z * scaleX;
             float sy = vm.GetActorY(actor) - vm.GetActorElevation(actor) - box.w * scaleY;
+            // Classic COSTUME cels are authored for oldDir 0 (west) and drawn
+            // mirrored otherwise (ClassicCostumeRenderer::setFacing:
+            // _drawActorToRight = newDirToOldDir(facing) != 0). None of our
+            // baked costumes set the always-mirror format bit, so mirror
+            // exactly when facing != 0: swap U and re-anchor the hotspot.
+            if (facing != 0)
+            {
+                uv = new Vector4(uv.z, uv.y, uv.x, uv.w);
+                sx = vm.GetActorX(actor) - vm.GetCameraScrollX() - (box.x - box.z) * scaleX;
+            }
             SetActor(count, atlases[tableAtlas[slot]],
                 new Vector4(sx, sy, box.x * scaleX, box.y * scaleY), uv);
             SetActorClip(count, vm.GetActorClipPlane(actor));

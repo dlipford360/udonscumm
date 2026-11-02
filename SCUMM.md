@@ -302,8 +302,12 @@ rewiring beyond Wire All is needed. The ambient chore is a fallback only:
 normal walk/talk/stand poses (with their baked step sequences) are tried
 first, otherwise Guybrush's stuck `anim` 5 hijacks the walk cycle and legs
 never move. West walks face 270 through the `newDirToOldDir`-matching map
-with the baked walk seq cycling; the actor table is cached per actor for the
-same reason as objects above.
+with the baked walk seq cycling. Classic COST cels are authored facing
+oldDir 0 (west) and drawn mirrored otherwise
+(`ClassicCostumeRenderer::setFacing`), so the layer flips U and re-anchors
+the hotspot for facing != 0 — without this, east walks render the west
+base sprite and read as walking backwards. The actor table is cached per
+actor for the same reason as objects below.
 
 ### Camera scrolling (logo, vista, wide rooms)
 
