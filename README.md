@@ -1,5 +1,7 @@
 # VRChat World Project Template
 
+**SCUMM development:** see [SCUMM.md](SCUMM.md) for the Monkey Island resource importer, flatscreen prototype, setup, and current limitations.
+
 This repo makes it easy to start a new VRChat World project!
 
 <details>

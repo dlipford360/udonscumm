@@ -59,3 +59,8 @@ sysinfo.txt
 crashlytics-build.properties
 
 .idea
+
+# Locally converted game data and generated benchmark assets
+/Assets/Scumm/Generated/
+/Assets/Scumm/Generated.meta
+__pycache__/
