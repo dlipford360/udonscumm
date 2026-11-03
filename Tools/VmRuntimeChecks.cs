@@ -684,7 +684,9 @@ class VmRuntimeChecks
         for (int f = 0; f < 200000 && vm.completedTicks < 1700 && !vm.finished && vm.fault == ""; f++)
             vm.Advance(budget, 4);
         Check(vm.fault == "" && vm.ReadRoom() == 38, "Lookout entry must not fault, got " + vm.fault);
-        Check(vm.GetActorRoom(1) == 0, "Forced room entry alone leaves ego in room zero");
+        // Boot pre-places ego in the lookout (putActorInRoom at script 1:5859);
+        // forced entry must not move it (putActor keeps _room).
+        Check(vm.GetActorRoom(1) == 38, "Boot leaves ego pre-placed in lookout, got " + vm.GetActorRoom(1));
         vm.BeginLookoutWalkTest();
         Check(vm.GetActorRoom(1) == 38 && vm.GetActorVisible(1) == 1, "Diagnostic must place visible ego in displayed room");
         Check(vm.GetActorX(1) == 312 && vm.GetActorY(1) == 73 && vm.GetActorMoving(1) == 1,

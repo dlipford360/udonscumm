@@ -75,7 +75,7 @@ public class ScummV5Vm : UdonSharpBehaviour
     private int sentenceNum;
     private int randomState = 1;
     private int[] palChangeLog = new int[256 * 4];
-    private int currentRoom = -1;
+    private int currentRoom = 0;
     private int roomResource = -1;
     private int roomWidth;
     private int roomHeight;
@@ -249,7 +249,7 @@ public class ScummV5Vm : UdonSharpBehaviour
         // + room lights = 11). Sentence script 2 gates Look on
         // VAR_CURRENT_LIGHTS (9); without this every Look says "too dark".
         if (globalCount > 9) globals[9] = 11;
-        currentRoom = -1;
+        currentRoom = 0;
         roomResource = -1;
         roomWidth = 0;
         roomHeight = 0;
@@ -314,7 +314,7 @@ public class ScummV5Vm : UdonSharpBehaviour
         pendingPlaceY = 0;
         for (int i = 0; i < 48; i++)
         {
-            actorRoom[i] = -1;
+            actorRoom[i] = 0;
             actorX[i] = 0;
             actorY[i] = 0;
             actorVisible[i] = 0;
@@ -1653,7 +1653,7 @@ public class ScummV5Vm : UdonSharpBehaviour
         int y = WordOperandBit(32);
         if (fault != "") return;
         if (ValidActor(act) == 0) return;
-        actorRoom[act] = currentRoom;
+        // ScummVM Actor::putActor(x,y) keeps _room; only position changes.
         actorX[act] = x;
         actorY[act] = y;
         actorVisible[act] = 1;
@@ -1676,7 +1676,8 @@ public class ScummV5Vm : UdonSharpBehaviour
     }
 
     // Mirrors o5_putActorAtObject: place the actor at the object's walk
-    // point, or (240,120) when the object is not around.
+    // point, or (240,120) when the object is not around. Room is unchanged
+    // (ScummVM putActor keeps _room); only position changes.
     private void PutActorAtObject()
     {
         int act = ByteOperandBit(128);
@@ -1696,7 +1697,6 @@ public class ScummV5Vm : UdonSharpBehaviour
             x = actorX[objectOwner[obj]];
             y = actorY[objectOwner[obj]];
         }
-        actorRoom[act] = currentRoom;
         actorX[act] = x;
         actorY[act] = y;
         actorVisible[act] = 1;

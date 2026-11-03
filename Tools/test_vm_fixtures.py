@@ -98,7 +98,7 @@ class ReferenceSim:
         self.screen_h = 200
         self.screen_top = 0
         self.screen_bot = 200
-        self.current_room = -1
+        self.current_room = 0
         self.room_bytes = None
         self.room_width = 0
         self.room_height = 0
@@ -113,7 +113,7 @@ class ReferenceSim:
         self.obj_slots = {}
         self.actors = {}
         for i in range(1, 48):
-            self.actors[i] = {"room": -1, "x": 0, "y": 0, "visible": False,
+            self.actors[i] = {"room": 0, "x": 0, "y": 0, "visible": False,
                               "costume": 0, "facing": 0, "anim": 0, "elevation": 0,
                               "width": 0, "scaleX": 255, "scaleY": 255,
                               "walkSpeedX": 0, "walkSpeedY": 0, "talkColor": 0,
@@ -1389,12 +1389,13 @@ class ReferenceSim:
             if not 1 <= act < 48:
                 self.fault = f"Invalid actor {act}"
                 return "stop"
-            self.actors[act].update(room=self.current_room, x=x, y=y, visible=True,
+            # ScummVM putActor(x,y) keeps _room; only position changes.
+            self.actors[act].update(x=x, y=y, visible=True,
                                     walkCount=0, walkIndex=0, path=[])
             return None
         if opcode in (0x0E, 0x4E, 0x8E, 0xCE):
             # o5_putActorAtObject: actor at the object's walk point,
-            # or (240,120) when the object is not around.
+            # or (240,120) when the object is not around. Room unchanged.
             act = self.fetch(slot) if not opcode & 0x80 else self.read_var(slot, self.fetch_word(slot))
             obj = self.word_operand(slot, opcode, 0x40)
             if not 1 <= act < 48:
@@ -1413,7 +1414,7 @@ class ReferenceSim:
                 if 1 <= owner < 48 and self.actors[owner]["room"] == self.current_room:
                     x = self.actors[owner]["x"]
                     y = self.actors[owner]["y"]
-            self.actors[act].update(room=self.current_room, x=x, y=y, visible=True,
+            self.actors[act].update(x=x, y=y, visible=True,
                                     walkCount=0, walkIndex=0, path=[])
             return None
         if opcode in (0x24, 0x64, 0xA4, 0xE4):

@@ -166,6 +166,12 @@ fault): verb clicks (area 1) no longer abort an armed cutscene override
 override (dialogue legitimately uses 14 with input on), and choice clicks
 (120+) report via g194 alongside the normal dispatch (cutscene verb 14
 already did; normal verb 4 does not).
+Leaving 81 hid Guybrush: Bye does putActorInRoom(ego,28) then
+putActor(ego,201,129) before loadRoom(28). `o5_putActor` keeps `_room`
+(`putActor(x,y)` → `putActor(x,y,_room)`), so the second call must not snap
+ego back to 81. Both VMs now leave room untouched on putActor/putActorAtObject
+(boot pre-places ego in 38 via putActorInRoom at script 1:5859; forced entry
+no longer moves it).
 
 ### Foreground masks
 
