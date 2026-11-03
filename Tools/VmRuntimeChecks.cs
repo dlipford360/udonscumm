@@ -399,6 +399,38 @@ class VmRuntimeChecks
         Check(vm.FindVerbAt(30, 160) == 1, "Click on Give must hit verb slot 1");
         Check(vm.FindVerbAt(60, 160) == 2, "Click on Pick up must hit verb slot 2");
         Check(vm.FindVerbAt(200, 160) == 0, "Click on empty area must miss");
+        // Dialogue choices (120+) sit over the bottom bar and must win
+        // hit-testing despite lower slot numbers (room 81/28 overlap).
+        {
+            var vm2 = Machine();
+            Script(vm2, 1, 0x00);
+            vm2.ResetMachine();
+            int[] cids = new int[100]; cids[1] = 122; cids[10] = 4;
+            int[] cmodes = new int[100]; cmodes[1] = 1; cmodes[10] = 1;
+            int[] csave = new int[100];
+            int[] ctype = new int[100];
+            int[] cleft = new int[100]; cleft[1] = 2; cleft[10] = 22;
+            int[] ctop = new int[100]; ctop[1] = 153; ctop[10] = 155;
+            int[] ccenter = new int[100];
+            byte[][] cnames = new byte[100][];
+            cnames[1] = new byte[64];
+            byte[] pirate = new byte[] { 73, 32, 119, 97, 110, 116 };
+            for (int i = 0; i < pirate.Length; i++) cnames[1][i] = pirate[i];
+            cnames[10] = new byte[64];
+            byte[] give = new byte[] { 71, 105, 118, 101 };
+            for (int i = 0; i < give.Length; i++) cnames[10][i] = give[i];
+            int[] clen = new int[100]; clen[1] = 6; clen[10] = 4;
+            Set(vm2, "verbId", cids);
+            Set(vm2, "verbMode", cmodes);
+            Set(vm2, "verbSaveId", csave);
+            Set(vm2, "verbType", ctype);
+            Set(vm2, "verbLeft", cleft);
+            Set(vm2, "verbTop", ctop);
+            Set(vm2, "verbCenter", ccenter);
+            Set(vm2, "verbNames", cnames);
+            Set(vm2, "verbNameLen", clen);
+            Check(vm2.FindVerbAt(30, 157) == 1, "Overlapped choice must beat Give despite lower slot");
+        }
 
         // Hover sentence helpers: active verb, verb names, object hit + OBNA.
         vm = Machine();

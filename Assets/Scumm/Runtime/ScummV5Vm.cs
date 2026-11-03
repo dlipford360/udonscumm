@@ -3455,24 +3455,32 @@ public class ScummV5Vm : UdonSharpBehaviour
 
     // Mirrors findVerbAtPos: topmost clickable text verb under the cursor.
     public int FindVerbAt(int x, int y)    {
-        for (int i = 99; i >= 1; i--)
+        // Dialogue choices (120-199) sit over the bottom bar; when any are
+        // visible they win hit-testing so standard verbs underneath can't
+        // steal clicks (and the display skips standard to avoid overlap).
+        for (int pass = 0; pass < 2; pass++)
         {
-            if (verbMode[i] != 1 || verbId[i] == 0 || verbSaveId[i] != 0) continue;
-            if (verbType[i] != 0) continue;
-            int top = verbTop[i];
-            if (y < top || y >= top + 8) continue;
-            int width = VerbNameWidth(i);
-            if (width <= 0) continue;
-            if (verbCenter[i] != 0)
+            for (int i = 99; i >= 1; i--)
             {
-                // Centered text spans half the width on either side of left.
-                if (x < verbLeft[i] - width / 2 || x >= verbLeft[i] + width / 2) continue;
+                bool isChoice = verbId[i] >= 120 && verbId[i] < 200;
+                if ((pass == 0) != isChoice) continue;
+                if (verbMode[i] != 1 || verbId[i] == 0 || verbSaveId[i] != 0) continue;
+                if (verbType[i] != 0) continue;
+                int top = verbTop[i];
+                if (y < top || y >= top + 8) continue;
+                int width = VerbNameWidth(i);
+                if (width <= 0) continue;
+                if (verbCenter[i] != 0)
+                {
+                    // Centered text spans half the width on either side of left.
+                    if (x < verbLeft[i] - width / 2 || x >= verbLeft[i] + width / 2) continue;
+                }
+                else
+                {
+                    if (x < verbLeft[i] || x >= verbLeft[i] + width) continue;
+                }
+                return i;
             }
-            else
-            {
-                if (x < verbLeft[i] || x >= verbLeft[i] + width) continue;
-            }
-            return i;
         }
         return 0;
     }

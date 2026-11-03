@@ -397,26 +397,31 @@ class ReferenceSim:
         return max(abs(x - x2), abs(y - y2))
 
     def find_verb_at(self, x, y):
-        """Mirrors findVerbAtPos: topmost clickable text verb under cursor."""
+        """Mirrors findVerbAtPos: topmost clickable text verb under cursor.
+        Dialogue choices (120-199) win over the bottom bar when visible."""
         verbs = self.__dict__.get("verbs", {})
-        for key in sorted(verbs.keys(), reverse=True):
-            v = verbs[key]
-            if v.get("mode", 0) != 1 or v.get("id", 0) == 0 or v.get("save", 0) != 0:
-                continue
-            if v.get("type", 0) != 0:
-                continue
-            top = v.get("top", 0)
-            if y < top or y >= top + 8:
-                continue
-            width = self.verb_name_width(verbs, key)
-            if width <= 0:
-                continue
-            if v.get("center", 0):
-                if x < v.get("left", 0) - width // 2 or x >= v.get("left", 0) + width // 2:
+        for is_choice in (True, False):
+            for key in sorted(verbs.keys(), reverse=True):
+                v = verbs[key]
+                vid = v.get("id", 0)
+                if (vid >= 120 and vid < 200) != is_choice:
                     continue
-            elif x < v.get("left", 0) or x >= v.get("left", 0) + width:
-                continue
-            return key
+                if v.get("mode", 0) != 1 or vid == 0 or v.get("save", 0) != 0:
+                    continue
+                if v.get("type", 0) != 0:
+                    continue
+                top = v.get("top", 0)
+                if y < top or y >= top + 8:
+                    continue
+                width = self.verb_name_width(verbs, key)
+                if width <= 0:
+                    continue
+                if v.get("center", 0):
+                    if x < v.get("left", 0) - width // 2 or x >= v.get("left", 0) + width // 2:
+                        continue
+                elif x < v.get("left", 0) or x >= v.get("left", 0) + width:
+                    continue
+                return key
         return 0
 
     def fetch(self, slot):
@@ -2798,6 +2803,21 @@ class FixtureTests(unittest.TestCase):
         self.assertEqual(sim.find_verb_at(60, 160), 2)
         self.assertEqual(sim.find_verb_at(200, 160), 0)
         self.assertEqual(sim.find_verb_at(130, 160), 0)
+
+    def test_find_verb_at_prefers_dialogue_choices(self):
+        # Room 81/28 choices (120+) sit over the bottom bar; when visible
+        # they must win hit-testing so standard verbs underneath can't steal
+        # clicks (choice slot numbers are lower, so plain topmost-wins fails).
+        sim = ReferenceSim({1: bytes([0x00])})
+        sim.verbs = {
+            1: {"id": 122, "mode": 1, "save": 0, "type": 0, "left": 2, "top": 153,
+                "center": 0, "name": b"I want to be a pirate."},
+            10: {"id": 4, "mode": 1, "save": 0, "type": 0, "left": 22, "top": 155,
+                 "center": 0, "name": b"Give"},
+        }
+        # (30,157) is inside both choice (2-178 x 153-161) and Give (22-54 x
+        # 155-163); choice must win despite the lower slot number.
+        self.assertEqual(sim.find_verb_at(30, 157), 1)
 
     def test_if_class_of_is_matches_scummvm_polarity(self):
         # ScummVM jumps when the class MATCHES: plain class jumps when

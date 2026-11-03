@@ -179,6 +179,9 @@ Walking away from room 28 trials left 120-122 over the bar the same way
 (no room change to trigger the cleanup), so non-dialogue clicks (scene
 Walk-to or standard verbs <120) now also hide 120-199; choice clicks (120+)
 keep the rest for the next menu (scripts hide the selected one as it's used).
+Choices also win hit-testing and sole display while visible (FindVerbAt
+checks 120-199 first; verb display skips <120 when any choice shows), so the
+overlapping standard underneath can't steal clicks.
 
 ### Foreground masks
 

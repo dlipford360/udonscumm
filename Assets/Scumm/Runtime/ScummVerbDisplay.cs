@@ -43,12 +43,27 @@ public class ScummVerbDisplay : UdonSharpBehaviour
             hover = active.FindVerbAt(screenInput.pixelX, screenInput.pixelY);
         int count = 0;
         string log = "";
+        // When dialogue choices (120-199) are visible they own the bottom
+        // bar; skip standard verbs so the two sets never render overlapped.
+        bool choicesVisible = false;
+        for (int s = 1; s < 100; s++)
+        {
+            if (active.GetVerbMode(s) != 1) continue;
+            int vid = active.GetVerbId(s);
+            if (vid < 120 || vid >= 200) continue;
+            if (active.GetVerbSaveId(s) != 0) continue;
+            if (active.GetVerbType(s) != 0) continue;
+            if (active.GetVerbName(s) == "") continue;
+            choicesVisible = true;
+            break;
+        }
         for (int slot = 1; slot < 100 && count < verbLabels.Length; slot++)
         {
             if (active.GetVerbMode(slot) == 0) continue;
             if (active.GetVerbId(slot) == 0) continue;
             if (active.GetVerbSaveId(slot) != 0) continue;
             if (active.GetVerbType(slot) != 0) continue;
+            if (choicesVisible && active.GetVerbId(slot) < 120) continue;
             string name = active.GetVerbName(slot);
             if (name == "") continue;
             log += active.GetVerbId(slot) + " " + name + "\n";
