@@ -252,6 +252,11 @@ class ReferenceSim:
         verb_script = self.globals[32] if len(self.globals) > 32 else 0
         if verb_script == 0:
             return -1
+        # Clicking a verb button makes it the active verb for hover and the
+        # next scene click (Talk-to pirates needs g107=10 to stick; room 28
+        # local 202 ignores verb clicks). Set it here as well as in scripts.
+        if click_area == 1 and len(self.globals) > 107:
+            self.globals[107] = val
         # Leaving chat (non-dialogue click: scene Walk-to or a standard verb)
         # ends the conversation: hide any dialogue choices (120-199) so they
         # don't linger over the bottom bar (room 28 trials leftovers after

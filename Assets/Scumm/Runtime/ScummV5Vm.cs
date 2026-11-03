@@ -510,6 +510,10 @@ public class ScummV5Vm : UdonSharpBehaviour
         }
         int verbScript = globals.Length > 32 ? globals[32] : 0;
         if (verbScript == 0) return;
+        // Clicking a verb button makes it the active verb for hover and the
+        // next scene click (Talk-to pirates needs g107=10 to stick; room 28
+        // local 202 ignores verb clicks). Set it here as well as in scripts.
+        if (clickArea == 1 && 107 < globals.Length) globals[107] = val;
         // Leaving chat (non-dialogue click: scene Walk-to or a standard verb)
         // ends the conversation: hide any dialogue choices (120-199) so they
         // don't linger over the bottom bar (room 28 trials leftovers after
