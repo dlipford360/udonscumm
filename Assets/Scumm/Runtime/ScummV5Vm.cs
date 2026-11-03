@@ -510,6 +510,17 @@ public class ScummV5Vm : UdonSharpBehaviour
         }
         int verbScript = globals.Length > 32 ? globals[32] : 0;
         if (verbScript == 0) return;
+        // Leaving chat (non-dialogue click: scene Walk-to or a standard verb)
+        // ends the conversation: hide any dialogue choices (120-199) so they
+        // don't linger over the bottom bar (room 28 trials leftovers after
+        // walking away, etc.). Choice clicks (120+) keep other choices for
+        // the next menu (scripts hide the selected one as it's used).
+        bool isChoice = clickArea == 1 && val >= 120 && val < 200;
+        if (!isChoice)
+        {
+            for (int i = 1; i < 100; i++)
+                if (verbId[i] >= 120 && verbId[i] < 200) verbMode[i] = 0;
+        }
         // Dialogue choices (verbs 120+) unblock waiting dialogue scripts via
         // g194 (room 81 global 92, room 28 local 220 poll 194 != 0). The
         // cutscene verb script (14) reports the pick this way; the normal

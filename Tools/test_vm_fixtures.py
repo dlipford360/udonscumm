@@ -252,6 +252,16 @@ class ReferenceSim:
         verb_script = self.globals[32] if len(self.globals) > 32 else 0
         if verb_script == 0:
             return -1
+        # Leaving chat (non-dialogue click: scene Walk-to or a standard verb)
+        # ends the conversation: hide any dialogue choices (120-199) so they
+        # don't linger over the bottom bar (room 28 trials leftovers after
+        # walking away, etc.). Choice clicks (120+) keep others for the next
+        # menu (scripts hide the selected one as it's used).
+        is_choice = click_area == 1 and 120 <= val < 200
+        if not is_choice:
+            for v in self.__dict__.get("verbs", {}).values():
+                if 120 <= v.get("id", 0) < 200:
+                    v["mode"] = 0
         # Dialogue choices (verbs 120+) unblock waiting dialogue scripts via
         # g194 (room 81 global 92, room 28 local 220 poll 194 != 0). The
         # cutscene verb script (14) reports the pick this way; the normal
@@ -3213,6 +3223,90 @@ class FixtureTests(unittest.TestCase):
         # 124/125 stay mode 1 over the standard verbs (overlap).
         leftover = sorted(v["id"] for v in sim.verbs.values() if v.get("mode") == 1 and 120 <= v.get("id", 0) < 200)
         self.assertEqual(leftover, [], f"Dialogue choices must clear on room change, got {leftover}")
+
+    def test_leaving_chat_hides_dialogue_choices(self):
+        # Room 28 trials arms 120-122; walking away (scene Walk-to) must hide
+        # them so they don't linger over the bottom bar. Choice clicks must
+        # keep the others for the next menu (scripts hide the selected one).
+        from trace_boot import load_scripts
+        sim = ReferenceSim(load_scripts(Path(__file__).resolve().parent.parent / "Assets/Scumm/Generated/MonkeyIsland/scripts"))
+        sim.load_tables(Path(__file__).resolve().parent.parent / "Assets/Scumm/Generated/MonkeyIsland/object-tables.bytes")
+        sim.load_room_blobs(Path(__file__).resolve().parent.parent / "Assets/Scumm/Generated/RoomBlobs")
+        sim.start(1, [0])
+        for _ in range(1500):
+            sim.tick(4)
+        sim.start_scene(38)
+        for _ in range(200):
+            sim.tick(4)
+        sim.actors[1].update(room=38, x=154, y=106, visible=True)
+        sim.sentence = (11, 486, 0)
+        sim.sentence_num = 1
+        for _ in range(12000):
+            sim.tick(4)
+            if sim.fault or sim.current_room == 33:
+                break
+        for _ in range(30000):
+            sim.tick(4)
+            if sim.fault:
+                break
+            if sim.globals[53] != 0 and not sim.actor_moving(1):
+                break
+        sim.sentence = (2, 428, 0)
+        sim.sentence_num = 1
+        for _ in range(8000):
+            sim.tick(4)
+            if sim.fault:
+                break
+        sim.sentence = (11, 428, 0)
+        sim.sentence_num = 1
+        for _ in range(15000):
+            sim.tick(4)
+            if sim.fault or sim.current_room != 33:
+                break
+        for _ in range(20000):
+            sim.tick(4)
+            if sim.fault:
+                break
+            if sim.current_room == 28 and sim.globals[53] != 0 and not sim.actor_moving(1):
+                break
+        self.assertEqual(sim.current_room, 28)
+        sim.sentence = (10, 322, 0)
+        sim.sentence_num = 1
+        for _ in range(10000):
+            sim.tick(4)
+            if sim.fault:
+                break
+            if any("wantin" in t for _, t in sim.prints[-2:]):
+                break
+        for _ in range(3000):
+            sim.tick(4)
+            if sim.fault:
+                break
+        ids = sorted(v["id"] for v in sim.verbs.values() if v.get("mode") == 1 and 120 <= v.get("id", 0) < 200)
+        # Trials menu arms 120-122 plus 126-128 (same row); assert the core
+        # three are present without over-fitting the full set.
+        self.assertTrue(set([120, 121, 122]).issubset(set(ids)))
+        # Choice click keeps the menu (for the next question).
+        sim.run_input_script(1, 122, 1)
+        for _ in range(5000):
+            sim.tick(4)
+            if sim.fault:
+                break
+        self.assertEqual(sim.fault, "")
+        ids = sorted(v["id"] for v in sim.verbs.values() if v.get("mode") == 1 and 120 <= v.get("id", 0) < 200)
+        self.assertTrue(set([120, 121, 122]).issubset(set(ids)))
+        # Walking away (scene click) ends chat and must clear choices,
+        # leaving only the standard bottom bar.
+        sim.run_input_script(2, 0, 1)
+        for _ in range(3000):
+            sim.tick(4)
+            if sim.fault:
+                break
+        self.assertEqual(sim.fault, "")
+        leftover = sorted(v["id"] for v in sim.verbs.values() if v.get("mode") == 1 and 120 <= v.get("id", 0) < 200)
+        self.assertEqual(leftover, [])
+        standard = sorted(v["id"] for v in sim.verbs.values() if v.get("mode") == 1 and v.get("id", 0) < 120)
+        self.assertTrue(set([2, 3, 4, 5, 6, 7, 8, 9, 10]).issubset(set(standard)))
 
     def test_all_fixtures_meet_expectations(self):
         programs = {}

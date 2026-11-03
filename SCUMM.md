@@ -175,6 +175,10 @@ no longer moves it).
 Bye left 124/125 mode 1 over the bar verbs in 28 (overlap): the exit path
 has no VerbOps hide, so both VMs now hide verbs 120-199 on every room change
 (InstallRoom/start_scene, including room 0), before entry scripts re-arm.
+Walking away from room 28 trials left 120-122 over the bar the same way
+(no room change to trigger the cleanup), so non-dialogue clicks (scene
+Walk-to or standard verbs <120) now also hide 120-199; choice clicks (120+)
+keep the rest for the next menu (scripts hide the selected one as it's used).
 
 ### Foreground masks
 

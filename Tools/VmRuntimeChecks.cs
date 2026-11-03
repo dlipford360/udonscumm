@@ -613,6 +613,23 @@ class VmRuntimeChecks
         Check(vm.ReadGlobal(32) == 14, "Heal must preserve 14 while override is armed, got " + vm.ReadGlobal(32));
         Check(vm.ReadGlobal(194) == 120, "Choice click must report via g194, got " + vm.ReadGlobal(194));
 
+        // Leaving chat hides dialogue choices (120-199) so they don't linger
+        // over the bottom bar; choice clicks keep the rest for the next menu.
+        vm = Machine();
+        Script(vm, 4, 0x00);
+        vm.ResetMachine();
+        vm.globals[32] = 4;
+        int[] hv = new int[100]; hv[1] = 120; hv[2] = 121;
+        Set(vm, "verbId", hv);
+        int[] hm = new int[100]; hm[1] = 1; hm[2] = 1;
+        Set(vm, "verbMode", hm);
+        vm.RunInputScript(1, 122, 1);
+        Check(vm.ReadGlobal(194) == 122, "Choice must report via g194");
+        Check(GetArr(vm, "verbMode", 1) == 1 && GetArr(vm, "verbMode", 2) == 1, "Choice click must keep other choices");
+        vm.RunInputScript(2, 0, 1);
+        Check(vm.fault == "", "Scene click must not fault, got " + vm.fault);
+        Check(GetArr(vm, "verbMode", 1) == 0 && GetArr(vm, "verbMode", 2) == 0, "Walk-away must hide dialogue choices");
+
         // EndCutscene restores the verb script slot and the hover tracker.
         vm = Machine();
         Script(vm, 1, 0xC0, 0x00);
