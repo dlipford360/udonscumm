@@ -577,6 +577,42 @@ class VmRuntimeChecks
         Check(vm.ReadGlobal(5) == 1, "Abort must set VAR_OVERRIDE");
         Check(vm.ReadGlobal(101) == 0, "Abort must consume the click (verb script must not run)");
 
+        // Verb clicks must not abort an armed override: dialogue choices
+        // (area 1, e.g. room 81 verbs 120+) dispatch to the verb script
+        // instead of skipping. Scene clicks (area 2) still abort (room-32).
+        vm = Machine();
+        Script(vm, 1, 0x40, 0xFF, 0x58, 0x01, 0x18, 0x00, 0x00, 0x1A, 100, 0, 7, 0, 0x00);
+        Script(vm, 4, 0x1A, 101, 0, 42, 0, 0x00);
+        Script(vm, 23, 0x2E, 0xFF, 0xFF, 0x7F, 0x00);
+        vm.ResetMachine();
+        vm.globals[35] = 0;
+        vm.globals[32] = 4;
+        Run(vm, budget);
+        Check(vm.fault == "", "Cutscene setup must not fault, got " + vm.fault);
+        vm.RunInputScript(1, 120, 1);
+        Check(vm.fault == "", "Verb click must not fault, got " + vm.fault);
+        Check(vm.ReadGlobal(5) == 0, "Verb click must not abort (VAR_OVERRIDE stays 0)");
+        Check(vm.ReadGlobal(101) == 0, "Verb click with input off must not dispatch yet");
+        vm.globals[53] = 1;
+        vm.RunInputScript(1, 120, 1);
+        for (int f = 0; f < 100 && vm.fault == "" && vm.ReadGlobal(101) == 0; f++) vm.Advance(budget, 4);
+        Check(vm.ReadGlobal(101) == 42, "Verb click must dispatch to verb script when input is on");
+
+        // Heal must preserve 14 while an override is armed (dialogue menus
+        // use 14 with input on), but restore 14->4 once consumed (room-32).
+        // Dialogue choices also report via g194 so late menus (g32=4) unblock.
+        vm = Machine();
+        Script(vm, 1, 0x40, 0xFF, 0x58, 0x01, 0x18, 0x00, 0x00, 0x00);
+        Script(vm, 4, 0x1A, 101, 0, 42, 0, 0x00);
+        vm.ResetMachine();
+        vm.globals[35] = 0;
+        vm.globals[32] = 14;
+        vm.globals[53] = 1;
+        Run(vm, budget);
+        vm.RunInputScript(1, 120, 1);
+        Check(vm.ReadGlobal(32) == 14, "Heal must preserve 14 while override is armed, got " + vm.ReadGlobal(32));
+        Check(vm.ReadGlobal(194) == 120, "Choice click must report via g194, got " + vm.ReadGlobal(194));
+
         // EndCutscene restores the verb script slot and the hover tracker.
         vm = Machine();
         Script(vm, 1, 0xC0, 0x00);

@@ -157,6 +157,15 @@ bytes. The next fetch decoded the class byte as opcode 1 (`o5_putActor`
 with act 141) and stopped with `Invalid actor 141` at `23:168`. `ValidObject`
 now returns 1/0 like `ValidActor`, and both simulators cover
 `ifClassOfIs(0)` present/absent branching without fault.
+Room-81's close-up dialogue (Talk to 28/336 → 81, global 92: introduce /
+dart-board / drink / bye) stalled with clicks dispatching to verb script 4
+and fizzling while script 92 waited on g194 at 1537. Three input-path fixes
+unblock it headlessly end-to-end (choices advance, Bye returns to 28, no
+fault): verb clicks (area 1) no longer abort an armed cutscene override
+(scene clicks still skip, room-32), the 14→4 heal only runs with no armed
+override (dialogue legitimately uses 14 with input on), and choice clicks
+(120+) report via g194 alongside the normal dispatch (cutscene verb 14
+already did; normal verb 4 does not).
 
 ### Foreground masks
 

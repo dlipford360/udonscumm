@@ -227,24 +227,39 @@ class ReferenceSim:
         self.write_raw(slot, address, value)
 
     def run_input_script(self, click_area, val, mode):
-        # A click during an armed cutscene override skips it (abortCutscene)
-        # instead of dispatching to the verb script; the click is consumed.
+        # A scene click during an armed cutscene override skips it
+        # (abortCutscene) instead of dispatching; the click is consumed.
         # (ScummVM aborts on ESC/both-buttons; our no-keyboard build aborts
-        # on any click so cutscenes remain skippable.)
-        if self.abort_cutscene():
+        # on scene clicks so cutscenes remain skippable.) Verb clicks
+        # (area 1, e.g. dialogue choices 120+) must dispatch to the verb
+        # script even during a cutscene (room 81 uses cutscene verb 14
+        # to report the pick via g194); aborting them fizzles dialogue.
+        if click_area != 1 and self.abort_cutscene():
             return -1
         # Heal UI stranded by entry cutscenes once input is live again: room
         # 32's spiel swaps in a locked verb script and stops the hover tracker
         # (script 23) without restoring either, and its tail re-locks the verb
         # script even after the cutscene ends. Without this, clicks fizzle.
+        # Do not touch 14 while an override is still armed: dialogue menus
+        # legitimately use 14 with input on (room 81).
+        top = self.cut_stack[-1] if getattr(self, "cut_stack", None) else {}
+        override_armed = bool(top.get("active", False) and top.get("slot", -1) >= 0)
         if len(self.globals) > 53 and self.globals[53] > 0:
-            if len(self.globals) > 32 and self.globals[32] == 14:
+            if not override_armed and len(self.globals) > 32 and self.globals[32] == 14:
                 self.globals[32] = 4
             if 23 in self.programs and not any(v.get("script") == 23 for v in self.slots.values()):
                 self.launch(23, [0] * 25, -1, 0, 0)
         verb_script = self.globals[32] if len(self.globals) > 32 else 0
         if verb_script == 0:
             return -1
+        # Dialogue choices (verbs 120+) unblock waiting dialogue scripts via
+        # g194 (room 81 global 92, room 28 local 220 poll 194 != 0). The
+        # cutscene verb script (14) reports the pick this way; the normal
+        # verb script (4) does not, so report it here as well to keep late
+        # menus (input on, g32=4) working. Stale picks are harmless: each
+        # wait loop clears 194 to 0 before polling.
+        if click_area == 1 and val >= 120 and len(self.globals) > 194:
+            self.globals[194] = val
         return self.launch(verb_script, [click_area, val, mode] + [0] * 22, -1)
 
     def abort_cutscene(self):
@@ -3103,6 +3118,87 @@ class FixtureTests(unittest.TestCase):
                 break
         self.assertEqual(sim.fault, "")
         self.assertTrue(advanced)
+
+    def test_room81_dialogue_choices_advance_and_exit(self):
+        # Talk to the bar pirate (336) loads the close-up (81) with a choice
+        # menu (introduce/dart/drink/bye). Clicking choices must advance the
+        # dialogue (via g194) instead of fizzling, and Bye must return to 28.
+        from trace_boot import load_scripts
+        sim = ReferenceSim(load_scripts(Path(__file__).resolve().parent.parent / "Assets/Scumm/Generated/MonkeyIsland/scripts"))
+        sim.load_tables(Path(__file__).resolve().parent.parent / "Assets/Scumm/Generated/MonkeyIsland/object-tables.bytes")
+        sim.load_room_blobs(Path(__file__).resolve().parent.parent / "Assets/Scumm/Generated/RoomBlobs")
+        sim.start(1, [0])
+        for _ in range(1500):
+            sim.tick(4)
+        sim.start_scene(38)
+        for _ in range(200):
+            sim.tick(4)
+        sim.actors[1].update(room=38, x=154, y=106, visible=True)
+        sim.sentence = (11, 486, 0)
+        sim.sentence_num = 1
+        for _ in range(12000):
+            sim.tick(4)
+            if sim.fault or sim.current_room == 33:
+                break
+        for _ in range(30000):
+            sim.tick(4)
+            if sim.fault:
+                break
+            if sim.globals[53] != 0 and not sim.actor_moving(1):
+                break
+        sim.sentence = (2, 428, 0)
+        sim.sentence_num = 1
+        for _ in range(8000):
+            sim.tick(4)
+            if sim.fault:
+                break
+        sim.sentence = (11, 428, 0)
+        sim.sentence_num = 1
+        for _ in range(15000):
+            sim.tick(4)
+            if sim.fault or sim.current_room != 33:
+                break
+        for _ in range(20000):
+            sim.tick(4)
+            if sim.fault:
+                break
+            if sim.current_room == 28 and sim.globals[53] != 0 and not sim.actor_moving(1):
+                break
+        self.assertEqual(sim.fault, "")
+        self.assertEqual(sim.current_room, 28)
+        sim.sentence = (10, 336, 0)
+        sim.sentence_num = 1
+        for _ in range(20000):
+            sim.tick(4)
+            if sim.fault:
+                break
+            if sim.current_room == 81 and any("looking at me" in t for _, t in sim.prints[-3:]):
+                break
+        self.assertEqual(sim.fault, "")
+        self.assertEqual(sim.current_room, 81)
+        # Play through the menu until Bye returns to the bar. Click whatever
+        # choice is offered (verb ids 120+); prefer Bye (125) once seen.
+        exited = False
+        for rnd in range(12):
+            ids = sorted(v["id"] for v in sim.verbs.values() if v.get("mode") == 1 and v.get("id") >= 120)
+            if not ids:
+                for _ in range(2000):
+                    sim.tick(4)
+                    if sim.fault:
+                        break
+                continue
+            choice = 125 if (rnd >= 4 and 125 in ids) else ids[0]
+            sim.run_input_script(1, choice, 1)
+            for _ in range(8000):
+                sim.tick(4)
+                if sim.fault or sim.current_room != 81:
+                    break
+            if sim.fault or sim.current_room != 81:
+                exited = sim.current_room != 81
+                break
+        self.assertEqual(sim.fault, "")
+        self.assertTrue(exited, "Bye should return to room 28")
+        self.assertEqual(sim.current_room, 28)
 
     def test_all_fixtures_meet_expectations(self):
         programs = {}

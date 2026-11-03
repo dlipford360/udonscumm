@@ -493,14 +493,30 @@ public class ScummV5Vm : UdonSharpBehaviour
     {
         if (states == null) ResetMachine();
         if (fault != "" || tickInProgress) return;
-        if (AbortCutscene()) { activeSlot = -1; return; }
+        // Dialogue choices are verb clicks (area 1) during a cutscene with an
+        // armed override: they must dispatch to the cutscene verb script
+        // (14, which reports the pick via g194), not abort the cutscene.
+        // Scene clicks (area 2) still skip via abort (room-32).
+        if (clickArea != 1 && AbortCutscene()) { activeSlot = -1; return; }
         if (globals.Length > 53 && globals[53] > 0)
         {
-            if (globals.Length > 32 && globals[32] == 14) globals[32] = 4;
+            // Room-32's entry spiel strands verb script 14 with no armed
+            // override and no hover tracker; heal that once input is live.
+            // Do not touch 14 while an override is still armed (dialogue
+            // menus legitimately use 14 with input on, e.g. room 81).
+            bool overrideArmed = cutStackPtr >= 0 && cutActive[cutStackPtr] && cutSlot[cutStackPtr] >= 0;
+            if (!overrideArmed && globals.Length > 32 && globals[32] == 14) globals[32] = 4;
             RestoreHoverTracker();
         }
         int verbScript = globals.Length > 32 ? globals[32] : 0;
         if (verbScript == 0) return;
+        // Dialogue choices (verbs 120+) unblock waiting dialogue scripts via
+        // g194 (room 81 global 92, room 28 local 220 poll 194 != 0). The
+        // cutscene verb script (14) reports the pick this way; the normal
+        // verb script (4) does not, so report it here as well to keep late
+        // menus (input on, g32=4) working. Stale picks are harmless: each
+        // wait loop clears 194 to 0 before polling.
+        if (clickArea == 1 && val >= 120 && 194 < globals.Length) globals[194] = val;
         for (int i = 0; i < 25; i++) arguments[i] = 0;
         arguments[0] = clickArea;
         arguments[1] = val;
