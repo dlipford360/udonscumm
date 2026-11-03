@@ -1369,6 +1369,8 @@ public class ScummV5Vm : UdonSharpBehaviour
             for (int i = 0; i < 200; i++) { objSlotId[i] = 0; objSlotObcd[i] = 0; }
             if (4 < globals.Length) globals[4] = 0;
             pendingPlaceEgo = -1;
+            for (int i = 1; i < 100; i++)
+                if (verbId[i] >= 120 && verbId[i] < 200) verbMode[i] = 0;
             return;
         }
         if (roomBlobs == null || room < 0 || room >= roomBlobs.Length || roomBlobs[room] == null)
@@ -1415,6 +1417,11 @@ public class ScummV5Vm : UdonSharpBehaviour
             cameraDestX = cameraX;
             if (px != -1) StartActorWalk(pe, px, py, -1);
         }
+        // Dialogue choices (verbs 120-199) are per-conversation; a room change
+        // ends the conversation, so hide any leftovers (e.g. room 81 Bye
+        // exits leaving 124/125 visible over the bar verbs in 28).
+        for (int i = 1; i < 100; i++)
+            if (verbId[i] >= 120 && verbId[i] < 200) verbMode[i] = 0;
         // Room entries reset the camera (see InstallRoom); explicit pans and
         // actor-follow walk it from there.
         for (int i = 0; i < 256 * 4; i++) palChangeLog[i] = -1;

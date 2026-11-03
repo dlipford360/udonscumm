@@ -466,6 +466,9 @@ class ReferenceSim:
             self.obj_slots = {}
             self.globals[4] = 0
             self.__dict__["pending_place"] = None
+            for v in self.__dict__.get("verbs", {}).values():
+                if 120 <= v.get("id", 0) < 200:
+                    v["mode"] = 0
             return
         if room not in self.room_blobs:
             self.fault = f"Room {room} not converted"
@@ -497,6 +500,12 @@ class ReferenceSim:
         self.globals[22] = room
         self.globals[17] = self.screen_w // 2
         self.globals[18] = blob["width"] - self.screen_w // 2
+        # Dialogue choices (verbs 120-199) are per-conversation; a room change
+        # ends the conversation, so hide any leftovers (e.g. room 81 Bye
+        # exits leaving 124/125 visible over the bar verbs in 28).
+        for v in self.__dict__.get("verbs", {}).values():
+            if 120 <= v.get("id", 0) < 200:
+                v["mode"] = 0
         # A loadRoomWithEgo transition places ego at the object's walk point
         # (falling back to the target), snaps the camera there, and walks it
         # to the target unless it is (-1, -1). Applied here, once the room
@@ -3200,6 +3209,10 @@ class FixtureTests(unittest.TestCase):
         self.assertEqual(sim.fault, "")
         self.assertTrue(exited, "Bye should return to room 28")
         self.assertEqual(sim.current_room, 28)
+        # Returning to the bar must clear the close-up choices; otherwise
+        # 124/125 stay mode 1 over the standard verbs (overlap).
+        leftover = sorted(v["id"] for v in sim.verbs.values() if v.get("mode") == 1 and 120 <= v.get("id", 0) < 200)
+        self.assertEqual(leftover, [], f"Dialogue choices must clear on room change, got {leftover}")
 
     def test_all_fixtures_meet_expectations(self):
         programs = {}

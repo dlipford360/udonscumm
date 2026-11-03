@@ -172,6 +172,9 @@ putActor(ego,201,129) before loadRoom(28). `o5_putActor` keeps `_room`
 ego back to 81. Both VMs now leave room untouched on putActor/putActorAtObject
 (boot pre-places ego in 38 via putActorInRoom at script 1:5859; forced entry
 no longer moves it).
+Bye left 124/125 mode 1 over the bar verbs in 28 (overlap): the exit path
+has no VerbOps hide, so both VMs now hide verbs 120-199 on every room change
+(InstallRoom/start_scene, including room 0), before entry scripts re-arm.
 
 ### Foreground masks
 
